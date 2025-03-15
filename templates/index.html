@@ -1,0 +1,217 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Recipe RAG System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .hidden {
+            display: none;
+        }
+        .chunks {
+            margin-top: 20px;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .chunk {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,.3);
+            border-radius: 50%;
+            border-top-color: #4CAF50;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Recipe RAG System</h1>
+    
+    <div class="section" id="uploadSection">
+        <h2>Step 1: Upload Recipe PDF</h2>
+        <div>
+            <label for="apiKey">Google API Key:</label>
+            <input type="password" id="apiKey" placeholder="Enter your Google API Key">
+        </div>
+        <div>
+            <label for="pdfFile">PDF File:</label>
+            <input type="file" id="pdfFile" accept=".pdf">
+        </div>
+        <div>
+            <button id="uploadButton">Upload and Process</button>
+            <span id="uploadStatus"></span>
+        </div>
+    </div>
+    
+    <div class="section hidden" id="questionSection">
+        <h2>Step 2: Ask Questions</h2>
+        <div>
+            <label for="question">Your Question:</label>
+            <textarea id="question" rows="3" placeholder="Enter your question about the recipes"></textarea>
+        </div>
+        <div>
+            <button id="askButton">Ask</button>
+            <span id="questionStatus"></span>
+        </div>
+        
+        <div id="answerContainer" class="hidden">
+            <h3>Answer:</h3>
+            <div id="answer"></div>
+            
+            <div id="chunksToggle">
+                <button id="showChunksButton">Show Source Chunks</button>
+            </div>
+            <div id="chunksContainer" class="chunks hidden"></div>
+        </div>
+    </div>
+    
+    <script>
+        let fileId = null;
+        
+        document.getElementById('uploadButton').addEventListener('click', async () => {
+            const apiKey = document.getElementById('apiKey').value;
+            const fileInput = document.getElementById('pdfFile');
+            const statusEl = document.getElementById('uploadStatus');
+            
+            if (!apiKey) {
+                statusEl.textContent = 'Please enter your Google API Key';
+                return;
+            }
+            
+            if (!fileInput.files.length) {
+                statusEl.textContent = 'Please select a PDF file';
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('api_key', apiKey);
+            
+            statusEl.innerHTML = '<div class="loading"></div> Processing...';
+            
+            try {
+                const response = await fetch('/upload-pdf', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    fileId = data.file_id;
+                    statusEl.textContent = `Success! Processed ${data.num_chunks} chunks`;
+                    document.getElementById('questionSection').classList.remove('hidden');
+                } else {
+                    statusEl.textContent = data.detail || 'Error processing PDF';
+                }
+            } catch (error) {
+                statusEl.textContent = 'Error: ' + error.message;
+            }
+        });
+        
+        document.getElementById('askButton').addEventListener('click', async () => {
+            if (!fileId) {
+                alert('Please upload a PDF first');
+                return;
+            }
+            
+            const question = document.getElementById('question').value;
+            const statusEl = document.getElementById('questionStatus');
+            
+            if (!question) {
+                statusEl.textContent = 'Please enter a question';
+                return;
+            }
+            
+            statusEl.innerHTML = '<div class="loading"></div> Generating answer...';
+            document.getElementById('answerContainer').classList.add('hidden');
+            
+            try {
+                const response = await fetch(`/ask-question/${fileId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusEl.textContent = '';
+                    document.getElementById('answer').textContent = data.answer;
+                    
+                    // Display chunks
+                    const chunksContainer = document.getElementById('chunksContainer');
+                    chunksContainer.innerHTML = '';
+                    
+                    data.chunks.forEach((chunk, i) => {
+                        const chunkEl = document.createElement('div');
+                        chunkEl.className = 'chunk';
+                        chunkEl.innerHTML = `<strong>Chunk ${i+1}</strong><pre>${chunk}</pre>`;
+                        chunksContainer.appendChild(chunkEl);
+                    });
+                    
+                    document.getElementById('answerContainer').classList.remove('hidden');
+                } else {
+                    statusEl.textContent = data.detail || 'Error generating answer';
+                }
+            } catch (error) {
+                statusEl.textContent = 'Error: ' + error.message;
+            }
+        });
+        
+        // Toggle chunks visibility
+        document.getElementById('showChunksButton').addEventListener('click', () => {
+            const chunksContainer = document.getElementById('chunksContainer');
+            const button = document.getElementById('showChunksButton');
+            
+            if (chunksContainer.classList.contains('hidden')) {
+                chunksContainer.classList.remove('hidden');
+                button.textContent = 'Hide Source Chunks';
+            } else {
+                chunksContainer.classList.add('hidden');
+                button.textContent = 'Show Source Chunks';
+            }
+        });
+    </script>
+</body>
+</html>
+    

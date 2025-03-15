@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Document RAG System</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <div class="container">
+        <h1>Document RAG System with FAISS</h1>
+        <div class="info-box">
+            Upload a document (PDF or text) and ask questions about it. This system uses FAISS for vector storage and Google's Gemini API for retrieving information and generating answers.
+        </div>
+        
+        <div class="section" id="uploadSection">
+            <h2>Step 1: Upload Document</h2>
+            <div class="form-group">
+                <label for="apiKey">Google API Key:</label>
+                <input type="password" id="apiKey" placeholder="Enter your Google Gemini API Key">
+            </div>
+            <div class="form-group">
+                <label for="docFile">Document File (PDF or Text):</label>
+                <input type="file" id="docFile">
+            </div>
+            <div class="form-group">
+                <button id="uploadButton" class="btn btn-primary">Upload and Process</button>
+                <span id="uploadStatus"></span>
+            </div>
+            <div id="debugInfo" class="debug-info hidden">
+                <h4>Document Processing Info:</h4>
+                <div id="debugContent"></div>
+            </div>
+        </div>
+        
+        <div class="section hidden" id="questionSection">
+            <h2>Step 2: Ask Questions</h2>
+            <div class="form-group">
+                <label for="question">Your Question:</label>
+                <textarea id="question" rows="3" placeholder="Enter your question about the document"></textarea>
+            </div>
+            <div class="form-group">
+                <button id="askButton" class="btn btn-primary">Ask</button>
+                <span id="questionStatus"></span>
+            </div>
+            
+            <div id="answerContainer" class="hidden">
+                <h3>Answer:</h3>
+                <div id="answer" class="answer-content"></div>
+                
+                <div id="chunksToggle">
+                    <button id="showChunksButton" class="btn btn-secondary">Show Source Chunks</button>
+                </div>
+                <div id="chunksContainer" class="chunks hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
